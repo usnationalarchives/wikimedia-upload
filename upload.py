@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import json, requests, csv, re, os, mwclient
+import json, requests, csv, re, os, mwclient, settings
 from mwclient import Site
 
 def metadata(record, level, objects):
-	license = '{{PD-USGov}}'
+	license = '{{PD-USGov-DOD}}'
 	
 	title = record['title']
 	try:
@@ -34,9 +34,9 @@ def metadata(record, level, objects):
 	except KeyError as e:
 		if e[0] == 'productionDateArray':
 			try:
-				date = '{{date|' + record['parentSeries']['inclusiveDates']['inclusiveStartDate']['year'] + '}} &endash; {{date|' + record['parentSeries']['inclusiveDates']['inclusiveEndDate']['year'] + '}}'
+				date = '{{date|' + record['parentSeries']['inclusiveDates']['inclusiveStartDate']['year'] + '}} &ndash; {{date|' + record['parentSeries']['inclusiveDates']['inclusiveEndDate']['year'] + '}}'
 			except:
-				date = '{{date|' + record['parentFileUnit']['parentSeries']['inclusiveDates']['inclusiveStartDate']['year'] + '}} &endash; {{date|' + record['parentFileUnit']['parentSeries']['inclusiveDates']['inclusiveEndDate']['year'] + '}}'
+				date = '{{date|' + record['parentFileUnit']['parentSeries']['inclusiveDates']['inclusiveStartDate']['year'] + '}} &ndash; {{date|' + record['parentFileUnit']['parentSeries']['inclusiveDates']['inclusiveEndDate']['year'] + '}}'
 		if e[0] == 'day':
 			date = '{{date|' + record['productionDateArray']['proposableQualifiableDate']['year'] + '|' + record['productionDateArray']['proposableQualifiableDate']['month'] + '|}}'
 		if e[0] == 'month':
@@ -121,7 +121,7 @@ def metadata(record, level, objects):
 		fname = title + ' - NARA - ' + naid + '.' + object_array[0][1].split('.')[-1].lower()
 		if len(fname) > 240:
 			truncate = 234 - len(' - NARA - ' + naid + '.' + object_array[0][1].split('.')[-1])
-			fname = title[:truncate] + '[...] - NARA - ' + naid + '.' + object_array[0][1].split('.')[-1].lower()
+			fname = title[:truncate] + '(...) - NARA - ' + naid + '.' + object_array[0][1].split('.')[-1].lower()
 		filename.append(fname)
 	if len(object_array) > 1:
 		n = 1
@@ -141,18 +141,18 @@ def metadata(record, level, objects):
  | Title                   = """ + title + """
  | Scope and content       = """ + scope_and_content + """
  | General notes           = 
- | ARC                     = """ + naid + """
+ | NAID                     = """ + naid + """
  | Local identifier        = """ + local_identifier + """
  | Creator                 = """ + creator + """
  | Author                  = """ + author + """
  | Location                = """ + location + """
  | Date                    = """ + date + """
  | Record group            = """ + record_group + """
- | Record group ARC        = """ + record_group_naid + """
+ | Record group NAID        = """ + record_group_naid + """
  | Series                  = """ + series + """
- | Series ARC              = """ + series_naid + """
+ | Series NAID              = """ + series_naid + """
  | File unit               = """ + file_unit + """
- | File unit ARC           = """ + file_unit_naid + """
+ | File unit NAID           = """ + file_unit_naid + """
  | Variant control numbers = """ + '<br/>'.join(variant_control_numbers) + """
  | Other versions          =
  | Other pages             = """ + other_pages + """
@@ -161,7 +161,9 @@ def metadata(record, level, objects):
 =={{int:license-header}}==
 
 {{NARA-cooperation}}
-""" + license
+""" + license + """
+
+""" + settings.categories
 
 	
 	print description
@@ -169,26 +171,20 @@ def metadata(record, level, objects):
 		print file + ' (' + str(len(file)) + ')'
 
 	site = mwclient.Site('commons.wikimedia.org')
-	site.login('US National Archives bot', 'XXX')
+	site.login(settings.user, settings.password)
 	n = 0
 	for object_tuple in object_array:
 		r = requests.get(object_tuple[0], stream=True)
 		with open(object_tuple[1], "wb") as image :
 			image.write(r.content)
-		site.upload(file=open(object_tuple[1]), filename=filename[n], description=description, ignore=True, comment='[[Commons:Bots/Requests/US National Archives bot|Bot-assisted upload]] of [[nara:' + naid + '|US National Archives Identifer ' + naid + ']].')
+		site.upload(file=open(object_tuple[1]), filename=filename[n], description=description, ignore=False, comment='[[Commons:Bots/Requests/US National Archives bot|Bot-assisted upload]] of [[nara:' + naid + '|US National Archives Identifer ' + naid + ']].')
+		os.remove(object_tuple[1])
 		n = n + 1
 
-# cursormark = '*'
-# rows = 0
-# while cursormark:
-# 	print rows
-# 	rows = rows + 500
-# 	url = 'https://uat.research.archives.gov/api/v1?exists=objects&type=description&rows=500&cursorMark=' + cursormark
+cursormark = '*'
 
-offset = 0
-
-while offset < 10000:
-	url = 'https://catalog.archives.gov/api/v1'
+while cursormark:
+	url = settings.api_query + cursormark
 	text = requests.get(url).text
 	try:
 		s = json.loads(text)
@@ -197,7 +193,7 @@ while offset < 10000:
 		with open('error.txt', 'wb') as file:
 			file.write(text.encode('utf-8'))
 
-	# 	cursormark = s['opaResponse']['results']['nextCursorMark']
+	cursormark = s['opaResponse']['results']['nextCursorMark']
 
 	for result in s['opaResponse']['results']['result']:
 	
@@ -211,10 +207,3 @@ while offset < 10000:
 			level = 'fileUnit'
 		
 		metadata(record, level, result['objects'])
-	offset = offset + 100000
-
-#
-# Change "objects.object.@objectSortNum=1" to "exists=objects"
-# https://catalog.archives.gov/api/v1?description.fileUnit.parentSeries.naId=(530707%20or%20533461)&objects.object.@objectSortNum=1&type=description&rows=100&resultFields=description,num,naId
-# https://catalog.archives.gov/api/v1?description.item.parentFileUnit.parentSeries.naId=(530707%20or%20533461)&objects.object.@objectSortNum=1&type=description&rows=100&resultFields=description,num,naId
-# https://catalog.archives.gov/api/v1?description.item.parentSeries.naId=(530707%20or%20533461)&objects.object.@objectSortNum=1&type=description&rows=100&resultFields=description,num,naId
