@@ -4,7 +4,6 @@ import json, requests, csv, re, os, mwclient, settings
 from mwclient import Site
 
 def metadata(record, level, objects):
-	license = '{{PD-USGov-DOD}}'
 	
 	title = record['title']
 	try:
@@ -68,7 +67,8 @@ def metadata(record, level, objects):
 		series = record['parentSeries']['title']
 		series_naid = record['parentSeries']['naId']
 		try:
-			record_group = 'Record Group ' + record['parentSeries']['parentRecordGroup']['recordGroupNumber'] + ': ' + record['parentSeries']['parentRecordGroup']['title']
+			record_group_number = record['parentSeries']['parentRecordGroup']['recordGroupNumber']
+			record_group = 'Record Group ' + record_group_number + ': ' + record['parentSeries']['parentRecordGroup']['title']
 			record_group_naid = record['parentSeries']['parentRecordGroup']['naId']
 		except:
 			record_group = 'Collection ' + record['parentSeries']['parentCollection']['collectionIdentifier'] + ': ' + record['parentSeries']['parentCollection']['title']
@@ -90,7 +90,8 @@ def metadata(record, level, objects):
 		series = record['parentFileUnit']['parentSeries']['title']
 		series_naid = record['parentFileUnit']['parentSeries']['naId']
 		try:
-			record_group = 'Record Group ' + record['parentFileUnit']['parentSeries']['parentRecordGroup']['recordGroupNumber'] + ': ' + record['parentFileUnit']['parentSeries']['parentRecordGroup']['title']
+			record_group_number = record['parentFileUnit']['parentSeries']['parentRecordGroup']['recordGroupNumber']
+			record_group = 'Record Group ' + record_group_number + ': ' + record['parentFileUnit']['parentSeries']['parentRecordGroup']['title']
 			record_group_naid = record['parentFileUnit']['parentSeries']['parentRecordGroup']['naId']
 		except:
 			record_group = 'Collection ' + record['parentFileUnit']['parentSeries']['parentCollection']['collectionIdentifier'] + ': ' + record['parentFileUnit']['parentSeries']['parentCollection']['title']
@@ -136,6 +137,14 @@ def metadata(record, level, objects):
 			n = n + 1
 		other_pages = other_pages + '\n</gallery>'
 	
+	license = '{{PD-USGov}}'
+	with open('record_groups.csv', 'r') as log :
+		readlog = csv.reader(log, delimiter= '\t', quoting=csv.QUOTE_ALL)
+		for row in readlog:
+			if record_group_number == row[0]:
+				if row[3]:
+					license = '{{PD-USGov-' + row[3] + '}}'
+	
 	description = """== {{int:filedesc}} ==
 {{NARA-image-full
  | Title                   = """ + title + """
@@ -177,7 +186,7 @@ def metadata(record, level, objects):
 		r = requests.get(object_tuple[0], stream=True)
 		with open(object_tuple[1], "wb") as image :
 			image.write(r.content)
-		site.upload(file=open(object_tuple[1]), filename=filename[n], description=description, ignore=False, comment='[[Commons:Bots/Requests/US National Archives bot|Bot-assisted upload]] of [[nara:' + naid + '|US National Archives Identifer ' + naid + ']].')
+# 		site.upload(file=open(object_tuple[1]), filename=filename[n], description=description, ignore=False, comment='[[Commons:Bots/Requests/US National Archives bot|Bot-assisted upload]] of [[nara:' + naid + '|US National Archives Identifer ' + naid + ']].')
 		os.remove(object_tuple[1])
 		n = n + 1
 
