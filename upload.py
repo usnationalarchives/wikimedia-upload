@@ -153,6 +153,7 @@ def metadata(record, level, objects):
  | NAID                    = """ + naid + """
  | Local identifier        = """ + local_identifier + """
  | Creator                 = """ + creator + """
+ | Creator NAID            = """ + creator_naid + """
  | Author                  = """ + author + """
  | Location                = """ + location + """
  | Date                    = """ + date + """
