@@ -176,10 +176,11 @@ def metadata(record, level, objects):
 """ + settings.categories
 
 	
-	print description
 	for file in filename:
-		print file + ' (' + str(len(file)) + ')'
+		print '\nUploading "' + file + '" (' + str(len(file)) + ')...\n'
 
+	print description
+	
 	site = mwclient.Site('commons.wikimedia.org')
 	site.login(settings.user, settings.password)
 	n = 0
@@ -187,7 +188,7 @@ def metadata(record, level, objects):
 		r = requests.get(object_tuple[0], stream=True)
 		with open(object_tuple[1], "wb") as image :
 			image.write(r.content)
-# 		site.upload(file=open(object_tuple[1]), filename=filename[n], description=description, ignore=False, comment='[[Commons:Bots/Requests/US National Archives bot|Bot-assisted upload]] of [[nara:' + naid + '|US National Archives Identifer ' + naid + ']].')
+		site.upload(file=open(object_tuple[1]), filename=filename[n], description=description, ignore=False, comment='[[Commons:Bots/Requests/US National Archives bot|Bot-assisted upload]] of [[nara:' + naid + '|US National Archives Identifer ' + naid + ']].')
 		os.remove(object_tuple[1])
 		n = n + 1
 
@@ -207,8 +208,8 @@ while cursormark:
 
 	for result in s['opaResponse']['results']['result']:
 	
-		print '\n' + result['num']
-		print result['naId']
+		print '\n--- ' + result['num'] + ' ---'
+		print 'Working on NAID ' + str(result['naId']) + ':'
 		if result['description'].keys()[0] == 'item':
 			record = result['description']['item']
 			level = 'item'
