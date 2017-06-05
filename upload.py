@@ -204,7 +204,10 @@ while cursormark:
 		with open('error.txt', 'wb') as file:
 			file.write(text.encode('utf-8'))
 
-	cursormark = s['opaResponse']['results']['nextCursorMark']
+	try:
+		cursormark = s['opaResponse']['results']['nextCursorMark']
+	except KeyError:
+		cursormark = ''
 
 	for result in s['opaResponse']['results']['result']:
 	
