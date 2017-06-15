@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import json, requests, csv, re, os, mwclient, settings
+import json, requests, csv, re, os, mwclient, datetime, settings
 from mwclient import Site
 
 def metadata(record, level, objects):
@@ -184,13 +184,16 @@ def metadata(record, level, objects):
 	site = mwclient.Site('commons.wikimedia.org')
 	site.login(settings.user, settings.password)
 	n = 0
-	for object_tuple in object_array:
-		r = requests.get(object_tuple[0], stream=True)
-		with open(object_tuple[1], "wb") as image :
-			image.write(r.content)
-		site.upload(file=open(object_tuple[1]), filename=filename[n], description=description, ignore=False, comment='[[Commons:Bots/Requests/US National Archives bot|Bot-assisted upload]] of [[nara:' + naid + '|US National Archives Identifer ' + naid + ']].')
-		os.remove(object_tuple[1])
-		n = n + 1
+	with open('commons_uploads.csv', 'wt') as log :
+		writelog = csv.writer(log, delimiter= '\t', quoting=csv.QUOTE_ALL)
+		for object_tuple in object_array:
+			r = requests.get(object_tuple[0], stream=True)
+			with open(object_tuple[1], "wb") as image :
+				image.write(r.content)
+			site.upload(file=open(object_tuple[1]), filename=filename[n], description=description, ignore=False, comment='[[Commons:Bots/Requests/US National Archives bot|Bot-assisted upload]] of [[nara:' + naid + '|US National Archives Identifer ' + naid + ']].')
+			writelog.writerow( (naid, object_tuple[0], filename[n], 'https://commons.wikimedia.org/wiki/File:' + filename[n]) )
+			os.remove(object_tuple[1])
+			n = n + 1
 
 cursormark = '*'
 
@@ -209,15 +212,23 @@ while cursormark:
 	except KeyError:
 		cursormark = ''
 
-	for result in s['opaResponse']['results']['result']:
+	try:
+		for result in s['opaResponse']['results']['result']:
 	
-		print '\n--- ' + result['num'] + ' ---'
-		print 'Working on NAID ' + str(result['naId']) + ':'
-		if result['description'].keys()[0] == 'item':
-			record = result['description']['item']
-			level = 'item'
-		if result['description'].keys()[0] == 'fileUnit':
-			record = result['description']['fileUnit']
-			level = 'fileUnit'
+			print '\n--- ' + result['num'] + ' ---'
+			print 'Working on NAID ' + str(result['naId']) + ':'
+			if result['description'].keys()[0] == 'item':
+				record = result['description']['item']
+				level = 'item'
+			if result['description'].keys()[0] == 'fileUnit':
+				record = result['description']['fileUnit']
+				level = 'fileUnit'
+				
+			metadata(record, level, result['objects'])
+			
+	except KeyError as e:
+		if e[0] == 'results':
+			print 'Sleeping...'
+			time.sleep(30)
+			cursormark = '*'
 		
-		metadata(record, level, result['objects'])
